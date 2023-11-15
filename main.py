@@ -1,31 +1,40 @@
-import mccabe
-import csv
 import os
-output_file = 'mccabe_complexity.csv'
-cyclomatic_complexity_data = []
-for root, _, files in os.walk('./source_files'):
-    for file in files:
-        if file.endswith('.py'):
-            # Calculate cyclomatic complexity for the current file
-            file_path = os.path.join(root, file)
-            with open(file_path, 'r') as f:
-                source_code = f.read()
-            tree = mccabe.parse_string(source_code)
-            cyclomatic_complexity = mccabe.complexity(tree)
+import csv
+from radon.complexity import cc_visit
+import textwrap
 
-            # Extract relevant metrics from the results
-            filename = file
-            cyclomatic_complexity = cyclomatic_complexity
+def calculate_cyclomatic_complexity(file_path):
+    print(file_path)
+    with open(file_path, 'r', encoding='latin-1') as file:
+        content = file.read()
+    content=textwrap.dedent(content)
+    try:
+        results = cc_visit(content)
+    except Exception as e:
+        return []
+    else:
+        return results
 
-            # Append the extracted metrics to the list
-            cyclomatic_complexity_data.append((filename, cyclomatic_complexity))
+def process_files_in_folder(folder_path):
+    results = []
+    for filename in os.listdir(folder_path):
+        if filename.endswith(".py"):
+            file_path = os.path.join(folder_path, filename)
+            complexity_results = calculate_cyclomatic_complexity(file_path)
+            total_complexity = sum(item.complexity for item in complexity_results)
+            results.append((filename, total_complexity))
+    return results
 
-# Open the output CSV file in write mode
-with open(output_file, 'w', newline='') as csvfile:
-    writer = csv.writer(csvfile)
+def write_results_to_csv(results, output_csv):
+    with open(output_csv, 'w', newline='') as csvfile:
+        csv_writer = csv.writer(csvfile)
+        csv_writer.writerow(['File Name', 'Cyclomatic Complexity'])
+        for filename, total_complexity in results:
+            csv_writer.writerow([filename, total_complexity])
 
-    # Write the column headers
-    writer.writerow(['Filename', 'Cyclomatic Complexity'])
+if __name__ == "__main__":
+    folder_path = "./stable_snippets_files"
+    output_csv = "complexity_results.csv"
 
-    # Write the extracted metrics to the CSV file
-    writer.writerows(cyclomatic_complexity_data)
+    complexity_results = process_files_in_folder(folder_path)
+    write_results_to_csv(complexity_results, output_csv)
