@@ -33,8 +33,8 @@ def write_results_to_csv(results, output_csv):
             csv_writer.writerow([filename, total_complexity])
 
 if __name__ == "__main__":
-    folder_path = "./stable_snippets_files"
-    output_csv = "complexity_results.csv"
+    folder_path = "./buggy_snippets_files"
+    output_csv = "complexity_results_buggy.csv"
 
     complexity_results = process_files_in_folder(folder_path)
     write_results_to_csv(complexity_results, output_csv)
