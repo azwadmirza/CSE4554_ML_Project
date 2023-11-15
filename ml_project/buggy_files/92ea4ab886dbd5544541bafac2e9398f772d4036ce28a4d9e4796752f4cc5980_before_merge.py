@@ -1,2 +1,0 @@
-    def teardown(self):
-        pass

@@ -1,1 +1,0 @@
-def array_result_handler(aval): return partial(DeviceArray, raise_to_shaped(aval))
