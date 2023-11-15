@@ -1,0 +1,14 @@
+    def get_bound_field(self, form, field_name):
+        bound_field = BoundField(form, self, field_name)
+
+        # Modify the QuerySet of the field before we return it. Limit choices to any data already bound: Options
+        # will be populated on-demand via the APISelect widget.
+        field_name = '{}{}'.format(self.to_field_name or 'pk', self.field_modifier)
+        if bound_field.data:
+            self.queryset = self.queryset.filter(**{field_name: self.prepare_value(bound_field.data)})
+        elif bound_field.initial:
+            self.queryset = self.queryset.filter(**{field_name: self.prepare_value(bound_field.initial)})
+        else:
+            self.queryset = self.queryset.none()
+
+        return bound_field

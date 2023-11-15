@@ -1,0 +1,68 @@
+def propage_type_and_convert_call(result, node):
+    calls_value = {}
+    calls_gas = {}
+
+    call_data = []
+
+    idx = 0
+    # use of while len() as result can be modified during the iteration
+    while idx < len(result):
+        ins = result[idx]
+
+        if isinstance(ins, TmpCall):
+            new_ins = extract_tmp_call(ins)
+            if new_ins:
+                new_ins.set_node(ins.node)
+                ins = new_ins
+                result[idx] = ins
+
+        if isinstance(ins, Argument):
+            if ins.get_type() in [ArgumentType.GAS]:
+                assert not ins.call_id in calls_gas
+                calls_gas[ins.call_id] = ins.argument
+            elif ins.get_type() in [ArgumentType.VALUE]:
+                assert not ins.call_id in calls_value
+                calls_value[ins.call_id] = ins.argument
+            else:
+                assert ins.get_type() == ArgumentType.CALL
+                call_data.append(ins.argument)
+
+        if isinstance(ins, (HighLevelCall, NewContract)):
+            if ins.call_id in calls_value:
+                ins.call_value = calls_value[ins.call_id]
+            if ins.call_id in calls_gas:
+                ins.call_gas = calls_gas[ins.call_id]
+
+        if isinstance(ins, (Call, NewContract, NewStructure)):
+            ins.arguments = call_data
+            call_data = []
+
+        if is_temporary(ins):
+            del result[idx]
+            continue
+
+        new_ins = propagate_types(ins, node)
+        if new_ins:
+            if isinstance(new_ins, (list,)):
+                if len(new_ins) == 2:
+                    new_ins[0].set_node(ins.node)
+                    new_ins[1].set_node(ins.node)
+                    del result[idx]
+                    result.insert(idx, new_ins[0])
+                    result.insert(idx+1, new_ins[1])
+                    idx = idx + 1
+                else:
+                    assert len(new_ins) == 3
+                    new_ins[0].set_node(ins.node)
+                    new_ins[1].set_node(ins.node)
+                    new_ins[2].set_node(ins.node)
+                    del result[idx]
+                    result.insert(idx, new_ins[0])
+                    result.insert(idx+1, new_ins[1])
+                    result.insert(idx+2, new_ins[2])
+                    idx = idx + 2
+            else:
+                new_ins.set_node(ins.node)
+                result[idx] = new_ins
+        idx = idx +1
+    return result

@@ -1,0 +1,20 @@
+async def subscribe(
+    schema: GraphQLSchema,
+    query: str,
+    root_value: typing.Any = None,
+    context_value: typing.Any = None,
+    variable_values: typing.Dict[str, typing.Any] = None,
+    operation_name: str = None,
+) -> typing.Union[
+    typing.AsyncIterator[ExecutionResult], ExecutionResult
+]:  # pragma: no cover
+    document = parse(query)
+
+    return await graphql_subscribe(
+        schema=schema,
+        document=document,
+        root_value=root_value,
+        context_value=context_value,
+        variable_values=variable_values,
+        operation_name=operation_name,
+    )

@@ -1,0 +1,22 @@
+        def _rejecter(*exc):
+            self._allocated = False
+            # handling exception occurrence of operand execution
+            exc_type = exc[0]
+            self._resource_ref.deallocate_resource(
+                self._session_id, self._op_key, self.worker, _tell=True, _wait=False)
+
+            if self.state == OperandState.CANCELLING:
+                logger.warning('Execution of operand %s cancelled.', self._op_key)
+                self.free_data(OperandState.CANCELLED)
+                return
+
+            if issubclass(exc_type, ExecutionInterrupted):
+                # job cancelled: switch to cancelled
+                logger.warning('Execution of operand %s interrupted.', self._op_key)
+                self.free_data(OperandState.CANCELLED)
+            elif issubclass(exc_type, DependencyMissing):
+                logger.warning('Operand %s moved to UNSCHEDULED because of DependencyMissing.',
+                               self._op_key)
+                self.ref().start_operand(OperandState.UNSCHEDULED, _tell=True)
+            else:
+                self.handle_unexpected_failure(*exc)

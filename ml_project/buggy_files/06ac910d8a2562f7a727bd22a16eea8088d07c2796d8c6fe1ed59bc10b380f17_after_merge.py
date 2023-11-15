@@ -1,0 +1,75 @@
+    def notify(self, title, message, config):
+        """
+        Sends a Pushover notification
+
+        :param str title: the message's title
+        :param str message: the message to send
+        :param dict config: The pushover config
+        """
+        notification = {
+            'token': config.get('api_key'),
+            'message': message,
+            'title': title,
+            'device': config.get('device'),
+            'priority': config.get('priority'),
+            'url': config.get('url'),
+            'url_title': config.get('url_title'),
+            'sound': config.get('sound'),
+            'retry': config.get('retry'),
+            'expire': config.get('expire'),
+            'callback': config.get('callback'),
+        }
+
+        # HTML parsing mode
+        if config.get('html'):
+            notification['html'] = 1
+
+        # Support multiple devices
+        if isinstance(notification['device'], list):
+            notification['device'] = ','.join(notification['device'])
+
+        # Special case, verify certain fields exists if priority is 2
+        priority = config.get('priority')
+        expire = config.get('expire')
+        retry = config.get('retry')
+        if priority == 2 and not all([expire, retry]):
+            log.warning(
+                'Priority set to 2 but fields "expire" and "retry" are not both present.Lowering priority to 1'
+            )
+            notification['priority'] = 1
+
+        if not isinstance(config['user_key'], list):
+            config['user_key'] = [config['user_key']]
+
+        for user in config['user_key']:
+            notification['user'] = user
+            try:
+                response = requests.post(PUSHOVER_URL, data=notification)
+            except RequestException as e:
+                if e.response is not None:
+                    if e.response.status_code == 429:
+                        app_reset = e.response.headers.get('X-Limit-App-Reset')
+                        if app_reset:
+                            reset_time = datetime.datetime.fromtimestamp(int(app_reset)).strftime(
+                                '%Y-%m-%d %H:%M:%S'
+                            )
+                            error_message = (
+                                f'Monthly pushover message limit reached. Next reset: {reset_time}'
+                            )
+
+                    else:
+                        error_message = e.response.json()['errors'][0]
+                else:
+                    error_message = str(e)
+                raise PluginWarning(error_message)
+
+            reset_time = datetime.datetime.fromtimestamp(
+                int(response.headers['X-Limit-App-Reset'])
+            ).strftime('%Y-%m-%d %H:%M:%S')
+            remaining = response.headers['X-Limit-App-Remaining']
+            log.debug(
+                'Pushover notification sent. Notifications remaining until next reset: %s. '
+                'Next reset at: %s',
+                remaining,
+                reset_time,
+            )

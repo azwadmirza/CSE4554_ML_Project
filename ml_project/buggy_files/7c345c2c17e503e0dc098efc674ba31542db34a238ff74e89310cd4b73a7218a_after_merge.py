@@ -1,0 +1,10 @@
+def make_masters():
+	import_json("Room")
+	import_json("Department")
+	import_json("Instructor")
+	import_json("Course")
+	import_json("Program")
+	import_json("Student Batch Name")
+	import_json("Assessment Criteria")
+	import_json("Grading Scale")
+	frappe.db.commit()

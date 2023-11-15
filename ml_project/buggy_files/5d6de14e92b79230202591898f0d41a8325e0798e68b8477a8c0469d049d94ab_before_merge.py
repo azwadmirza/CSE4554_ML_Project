@@ -1,0 +1,56 @@
+def get_context_from_db_entry(db_entry: QuerySet) -> dict:
+    """Return the context for APK/ZIP from DB"""
+    try:
+        logger.info("Analysis is already Done. Fetching data from the DB...")
+
+        context = {
+            'title': db_entry[0].TITLE,
+            'name': db_entry[0].APP_NAME,
+            'size': db_entry[0].SIZE,
+            'md5': db_entry[0].MD5,
+            'sha1': db_entry[0].SHA1,
+            'sha256': db_entry[0].SHA256,
+            'packagename': db_entry[0].PACKAGENAME,
+            'mainactivity': db_entry[0].MAINACTIVITY,
+            'targetsdk': db_entry[0].TARGET_SDK,
+            'maxsdk': db_entry[0].MAX_SDK,
+            'minsdk': db_entry[0].MIN_SDK,
+            'androvername': db_entry[0].ANDROVERNAME,
+            'androver': db_entry[0].ANDROVER,
+            'manifest': python_list(db_entry[0].MANIFEST_ANAL),
+            'permissions': python_dict(db_entry[0].PERMISSIONS),
+            'binary_analysis': python_list(db_entry[0].BIN_ANALYSIS),
+            'files': python_list(db_entry[0].FILES),
+            'certz': db_entry[0].CERTZ,
+            'icon_hidden': db_entry[0].ICON_HIDDEN,
+            'icon_found': db_entry[0].ICON_FOUND,
+            'activities': python_list(db_entry[0].ACTIVITIES),
+            'receivers': python_list(db_entry[0].RECEIVERS),
+            'providers': python_list(db_entry[0].PROVIDERS),
+            'services': python_list(db_entry[0].SERVICES),
+            'libraries': python_list(db_entry[0].LIBRARIES),
+            'browsable_activities': python_dict(db_entry[0].BROWSABLE),
+            'act_count': db_entry[0].CNT_ACT,
+            'prov_count': db_entry[0].CNT_PRO,
+            'serv_count': db_entry[0].CNT_SER,
+            'bro_count': db_entry[0].CNT_BRO,
+            'certinfo': db_entry[0].CERT_INFO,
+            'issued': db_entry[0].ISSUED,
+            'sha256Digest': db_entry[0].SHA256DIGEST,
+            'api': python_dict(db_entry[0].API),
+            'findings': python_dict(db_entry[0].DANG),
+            'urls': python_list(db_entry[0].URLS),
+            'domains': python_dict(db_entry[0].DOMAINS),
+            'emails': python_list(db_entry[0].EMAILS),
+            'strings': python_list(db_entry[0].STRINGS),
+            'zipped': db_entry[0].ZIPPED,
+            'mani': db_entry[0].MANI,
+            'e_act': db_entry[0].E_ACT,
+            'e_ser': db_entry[0].E_SER,
+            'e_bro': db_entry[0].E_BRO,
+            'e_cnt': db_entry[0].E_CNT,
+            'apkid': python_dict(db_entry[0].APK_ID),
+        }
+        return context
+    except:
+        PrintException("[ERROR] Fetching from DB")

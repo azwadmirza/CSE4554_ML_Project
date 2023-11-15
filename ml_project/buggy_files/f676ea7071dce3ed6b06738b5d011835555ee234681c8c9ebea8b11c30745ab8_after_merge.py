@@ -1,0 +1,11 @@
+def _filter_missing(repo, paths):
+    repo_tree = RepoTree(repo, stream=True)
+    for path in paths:
+        try:
+            metadata = repo_tree.metadata(path)
+            if metadata.is_dvc:
+                out = metadata.outs[0]
+                if out.status().get(str(out)) == "not in cache":
+                    yield path
+        except FileNotFoundError:
+            pass

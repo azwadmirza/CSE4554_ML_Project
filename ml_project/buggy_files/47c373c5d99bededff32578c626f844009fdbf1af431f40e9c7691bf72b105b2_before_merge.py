@@ -1,0 +1,19 @@
+def macro(name):
+    """Decorator to define a macro called `name`.
+    """
+    name = mangle(name)
+    def _(fn):
+        fn.__name__ = '({})'.format(name)
+        try:
+            fn._hy_macro_pass_compiler = has_kwargs(fn)
+        except Exception:
+            # An exception might be raised if fn has arguments with
+            # names that are invalid in Python.
+            fn._hy_macro_pass_compiler = False
+
+        module = inspect.getmodule(fn)
+        module_macros = module.__dict__.setdefault('__macros__', {})
+        module_macros[name] = fn
+
+        return fn
+    return _

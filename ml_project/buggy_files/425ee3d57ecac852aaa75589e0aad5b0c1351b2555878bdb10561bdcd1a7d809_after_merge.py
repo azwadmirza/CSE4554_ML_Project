@@ -1,0 +1,104 @@
+    def __init__(self, src, **kwds):
+        self.kwds = kwds
+        kwds = kwds.copy()
+
+        ParserBase.__init__(self, kwds)
+
+        encoding = kwds.get("encoding")
+
+        if kwds.get("compression") is None and encoding:
+            if isinstance(src, str):
+                src = open(src, "rb")
+                self.handles.append(src)
+
+            # Handle the file object with universal line mode enabled.
+            # We will handle the newline character ourselves later on.
+            if isinstance(src, BufferedIOBase):
+                src = TextIOWrapper(src, encoding=encoding, newline="")
+
+            kwds["encoding"] = "utf-8"
+
+        # #2442
+        kwds["allow_leading_cols"] = self.index_col is not False
+
+        # GH20529, validate usecol arg before TextReader
+        self.usecols, self.usecols_dtype = _validate_usecols_arg(kwds["usecols"])
+        kwds["usecols"] = self.usecols
+
+        self._reader = parsers.TextReader(src, **kwds)
+        self.unnamed_cols = self._reader.unnamed_cols
+
+        passed_names = self.names is None
+
+        if self._reader.header is None:
+            self.names = None
+        else:
+            if len(self._reader.header) > 1:
+                # we have a multi index in the columns
+                (
+                    self.names,
+                    self.index_names,
+                    self.col_names,
+                    passed_names,
+                ) = self._extract_multi_indexer_columns(
+                    self._reader.header, self.index_names, self.col_names, passed_names
+                )
+            else:
+                self.names = list(self._reader.header[0])
+
+        if self.names is None:
+            if self.prefix:
+                self.names = [
+                    f"{self.prefix}{i}" for i in range(self._reader.table_width)
+                ]
+            else:
+                self.names = list(range(self._reader.table_width))
+
+        # gh-9755
+        #
+        # need to set orig_names here first
+        # so that proper indexing can be done
+        # with _set_noconvert_columns
+        #
+        # once names has been filtered, we will
+        # then set orig_names again to names
+        self.orig_names = self.names[:]
+
+        if self.usecols:
+            usecols = _evaluate_usecols(self.usecols, self.orig_names)
+
+            # GH 14671
+            if self.usecols_dtype == "string" and not set(usecols).issubset(
+                self.orig_names
+            ):
+                _validate_usecols_names(usecols, self.orig_names)
+
+            if len(self.names) > len(usecols):
+                self.names = [
+                    n
+                    for i, n in enumerate(self.names)
+                    if (i in usecols or n in usecols)
+                ]
+
+            if len(self.names) < len(usecols):
+                _validate_usecols_names(usecols, self.names)
+
+        self._set_noconvert_columns()
+
+        self.orig_names = self.names
+
+        if not self._has_complex_date_col:
+            if self._reader.leading_cols == 0 and _is_index_col(self.index_col):
+
+                self._name_processed = True
+                (index_names, self.names, self.index_col) = _clean_index_names(
+                    self.names, self.index_col, self.unnamed_cols
+                )
+
+                if self.index_names is None:
+                    self.index_names = index_names
+
+            if self._reader.header is None and not passed_names:
+                self.index_names = [None] * len(self.index_names)
+
+        self._implicit_index = self._reader.leading_cols > 0

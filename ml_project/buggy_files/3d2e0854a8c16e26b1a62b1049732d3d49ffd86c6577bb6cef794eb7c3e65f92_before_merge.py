@@ -1,0 +1,20 @@
+    def setup_page(self):
+        self.table = LSPServerTable(self, text_color=ima.MAIN_FG_COLOR)
+        self.reset_btn = QPushButton(_("Reset to default values"))
+        self.new_btn = QPushButton(_("Setup a new server"))
+        self.delete_btn = QPushButton(_("Delete currently selected server"))
+        self.delete_btn.setEnabled(False)
+        server_group = QGroupBox(_('Available LSP Servers'))
+
+        vlayout = QVBoxLayout()
+        vlayout.addWidget(server_group)
+        # vlayout.addWidget(server_settings_description)
+        vlayout.addWidget(self.table)
+        vlayout.addWidget(self.new_btn)
+        vlayout.addWidget(self.delete_btn)
+        vlayout.addWidget(self.reset_btn)
+        self.setLayout(vlayout)
+
+        self.new_btn.clicked.connect(self.create_new_server)
+        self.reset_btn.clicked.connect(self.reset_to_default)
+        self.delete_btn.clicked.connect(self.delete_server)

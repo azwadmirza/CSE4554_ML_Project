@@ -1,0 +1,2 @@
+    def get(self, command=None, prompt=None, answer=None, sendonly=False, newline=True, output=None):
+        return self.send_command(command=command, prompt=prompt, answer=answer, sendonly=sendonly, newline=newline)

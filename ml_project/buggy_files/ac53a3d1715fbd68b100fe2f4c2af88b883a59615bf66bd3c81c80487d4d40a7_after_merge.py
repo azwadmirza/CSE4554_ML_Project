@@ -1,0 +1,15 @@
+def PrintException(msg, web=False):
+    """Print Exception verbose"""
+    exc_type, exc_obj, tb = sys.exc_info()
+    f = tb.tb_frame
+    lineno = tb.tb_lineno
+    filename = f.f_code.co_filename
+    linecache.checkcache(filename)
+    line = linecache.getline(filename, lineno, f.f_globals)
+    dat = '\n' + msg + \
+        ' ({0}, LINE {1} "{2}"): {3}'.format(
+            filename, lineno, line.strip(), exc_obj)
+    if web:
+        logger.warning(dat)
+    else:
+        logger.error(dat)

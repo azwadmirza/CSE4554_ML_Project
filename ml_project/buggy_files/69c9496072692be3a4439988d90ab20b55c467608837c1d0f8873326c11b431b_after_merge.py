@@ -1,0 +1,3 @@
+    def __len__(self) -> int:
+        # TODO(st--) we should check that they all have the same length...
+        return self.inducing_variable_list[0].num_inducing

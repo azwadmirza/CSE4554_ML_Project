@@ -1,0 +1,24 @@
+    def emit(self, name: str, *args: Any) -> List:
+        """Emit a Sphinx event."""
+        try:
+            logger.debug('[app] emitting event: %r%s', name, repr(args)[:100])
+        except Exception:
+            # not every object likes to be repr()'d (think
+            # random stuff coming via autodoc)
+            pass
+
+        results = []
+        listeners = sorted(self.listeners[name], key=attrgetter("priority"))
+        for listener in listeners:
+            try:
+                if self.app is None:
+                    # for compatibility; RemovedInSphinx40Warning
+                    results.append(listener.handler(*args))
+                else:
+                    results.append(listener.handler(self.app, *args))
+            except SphinxError:
+                raise
+            except Exception as exc:
+                raise ExtensionError(__("Handler %r for event %r threw an exception") %
+                                     (listener.handler, name)) from exc
+        return results

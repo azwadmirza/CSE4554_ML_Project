@@ -1,0 +1,9 @@
+def _get_notifier():
+    '''
+    Check the context for the notifier and construct it if not present
+    '''
+    if 'inotify.notifier' not in __context__:
+        __context__['inotify.queue'] = collections.deque()
+        wm = pyinotify.WatchManager()
+        __context__['inotify.notifier'] = pyinotify.Notifier(wm, _enqueue)
+    return __context__['inotify.notifier']

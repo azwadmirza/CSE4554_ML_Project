@@ -1,0 +1,14 @@
+    def loads(text):
+        """ parses a multiline text in the form
+        Package:option=value
+        other_option=3
+        OtherPack:opt3=12.1
+        """
+        result = []
+        for line in text.splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            name, value = line.split("=", 1)
+            result.append((name.strip(), value.strip()))
+        return OptionsValues(result)

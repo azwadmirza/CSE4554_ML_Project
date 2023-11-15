@@ -1,0 +1,35 @@
+def create_archive(root, files=None, fileobj=None, gzip=False):
+    if not fileobj:
+        fileobj = tempfile.NamedTemporaryFile()
+    t = tarfile.open(mode='w:gz' if gzip else 'w', fileobj=fileobj)
+    if files is None:
+        files = build_file_list(root)
+    for path in files:
+        full_path = os.path.join(root, path)
+        if not os.access(full_path, os.R_OK):
+            raise IOError(
+                'Can not access file in context: {}'.format(full_path)
+            )
+        i = t.gettarinfo(full_path, arcname=path)
+        if i is None:
+            # This happens when we encounter a socket file. We can safely
+            # ignore it and proceed.
+            continue
+
+        if constants.IS_WINDOWS_PLATFORM:
+            # Windows doesn't keep track of the execute bit, so we make files
+            # and directories executable by default.
+            i.mode = i.mode & 0o755 | 0o111
+
+        if i.isfile():
+            try:
+                with open(full_path, 'rb') as f:
+                    t.addfile(i, f)
+            except IOError:
+                t.addfile(i, None)
+        else:
+            # Directories, FIFOs, symlinks... don't need to be read.
+            t.addfile(i, None)
+    t.close()
+    fileobj.seek(0)
+    return fileobj

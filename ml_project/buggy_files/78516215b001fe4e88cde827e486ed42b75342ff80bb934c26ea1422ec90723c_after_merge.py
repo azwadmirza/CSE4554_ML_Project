@@ -1,0 +1,297 @@
+def main():
+
+    execution_dir = getcwd()
+
+    # By default insert the execution path (useful to be able to execute Errbot from
+    # the source tree directly without installing it.
+    sys.path.insert(0, execution_dir)
+
+    parser = argparse.ArgumentParser(description="The main entry point of the errbot.")
+    parser.add_argument(
+        "-c",
+        "--config",
+        default=None,
+        help="Full path to your config.py (default: config.py in current working directory).",
+    )
+
+    mode_selection = parser.add_mutually_exclusive_group()
+    mode_selection.add_argument(
+        "-v", "--version", action="version", version=f"Errbot version {VERSION}"
+    )
+    mode_selection.add_argument(
+        "-r",
+        "--restore",
+        nargs="?",
+        default=None,
+        const="default",
+        help="restore a bot from backup.py (default: backup.py from the bot data directory)",
+    )
+    mode_selection.add_argument(
+        "-l", "--list", action="store_true", help="list all available backends"
+    )
+    mode_selection.add_argument(
+        "--new-plugin",
+        nargs="?",
+        default=None,
+        const="current_dir",
+        help="create a new plugin in the specified directory",
+    )
+    mode_selection.add_argument(
+        "-i",
+        "--init",
+        nargs="?",
+        default=None,
+        const=".",
+        help="Initialize a simple bot minimal configuration in the optionally "
+        "given directory (otherwise it will be the working directory). "
+        "This will create a data subdirectory for the bot data dir and a plugins directory"
+        " for your plugin development with an example in it to get you started.",
+    )
+    # storage manipulation
+    mode_selection.add_argument(
+        "--storage-set",
+        nargs=1,
+        help="DANGER: Delete the given storage namespace "
+        "and set the python dictionary expression "
+        "passed on stdin.",
+    )
+    mode_selection.add_argument(
+        "--storage-merge",
+        nargs=1,
+        help="DANGER: Merge in the python dictionary expression "
+        "passed on stdin into the given storage namespace.",
+    )
+    mode_selection.add_argument(
+        "--storage-get",
+        nargs=1,
+        help="Dump the given storage namespace in a "
+        "format compatible for --storage-set and "
+        "--storage-merge.",
+    )
+
+    mode_selection.add_argument(
+        "-T",
+        "--text",
+        dest="backend",
+        action="store_const",
+        const="Text",
+        help="force local text backend",
+    )
+
+    if not ON_WINDOWS:
+        option_group = parser.add_argument_group("optional daemonization arguments")
+        option_group.add_argument(
+            "-d",
+            "--daemon",
+            action="store_true",
+            help="Detach the process from the console",
+        )
+        option_group.add_argument(
+            "-p",
+            "--pidfile",
+            default=None,
+            help="Specify the pid file for the daemon (default: current bot data directory)",
+        )
+
+    args = vars(parser.parse_args())  # create a dictionary of args
+
+    if args["init"]:
+        try:
+            import pathlib
+            import shutil
+
+            import jinja2
+
+            base_dir = pathlib.Path.cwd() if args["init"] == "." else Path(args["init"])
+
+            if not base_dir.exists():
+                print(f"Target directory {base_dir} must exist. Please create it.")
+
+            data_dir = base_dir / "data"
+            extra_plugin_dir = base_dir / "plugins"
+            example_plugin_dir = base_dir / extra_plugin_dir / "err-example"
+            log_path = base_dir / "errbot.log"
+
+            templates_dir = Path(os.path.dirname(__file__)) / "templates" / "initdir"
+            env = jinja2.Environment(
+                loader=jinja2.FileSystemLoader(str(templates_dir)), autoescape=True
+            )
+            config_template = env.get_template("config.py.tmpl")
+
+            data_dir.mkdir(exist_ok=True)
+            extra_plugin_dir.mkdir(exist_ok=True)
+            example_plugin_dir.mkdir(exist_ok=True)
+
+            with open(base_dir / "config.py", "w") as f:
+                f.write(
+                    config_template.render(
+                        data_dir=str(data_dir),
+                        extra_plugin_dir=str(extra_plugin_dir),
+                        log_path=str(log_path),
+                    )
+                )
+
+            shutil.copyfile(
+                templates_dir / "example.plug", example_plugin_dir / "example.plug"
+            )
+            shutil.copyfile(
+                templates_dir / "example.py", example_plugin_dir / "example.py"
+            )
+            print("Your Errbot directory has been correctly initialized!")
+            if base_dir == pathlib.Path.cwd():
+                print('Just do "errbot" and it should start in text/development mode.')
+            else:
+                print(
+                    f'Just do "cd {args["init"]}" then "errbot" and it should start in text/development mode.'
+                )
+            sys.exit(0)
+        except Exception as e:
+            print(f"The initialization of your errbot directory failed: {e}.")
+            sys.exit(1)
+
+    # This must come BEFORE the config is loaded below, to avoid printing
+    # logs as a side effect of config loading.
+    if args["new_plugin"]:
+        directory = (
+            os.getcwd() if args["new_plugin"] == "current_dir" else args["new_plugin"]
+        )
+        for handler in logging.getLogger().handlers:
+            root_logger.removeHandler(handler)
+        try:
+            new_plugin_wizard(directory)
+        except KeyboardInterrupt:
+            sys.exit(1)
+        except Exception as e:
+            sys.stderr.write(str(e) + "\n")
+            sys.exit(1)
+        finally:
+            sys.exit(0)
+
+    config_path = args["config"]
+    # setup the environment to be able to import the config.py
+    if config_path:
+        # appends the current config in order to find config.py
+        sys.path.insert(0, path.dirname(path.abspath(config_path)))
+    else:
+        config_path = execution_dir + sep + "config.py"
+
+    config = get_config(config_path)  # will exit if load fails
+
+    # Extra backend is expected to be a list type, convert string to list.
+    extra_backend = getattr(config, "BOT_EXTRA_BACKEND_DIR", [])
+    if isinstance(extra_backend, str):
+        extra_backend = [extra_backend]
+
+    if args["list"]:
+        from errbot.backend_plugin_manager import enumerate_backend_plugins
+
+        print("Available backends:")
+        roots = [CORE_BACKENDS] + extra_backend
+        for backend in enumerate_backend_plugins(collect_roots(roots)):
+            print(f"\t\t{backend.name}")
+        sys.exit(0)
+
+    def storage_action(namespace, fn):
+        # Used to defer imports until it is really necessary during the loading time.
+        from errbot.bootstrap import get_storage_plugin
+        from errbot.storage import StoreMixin
+
+        try:
+            with StoreMixin() as sdm:
+                sdm.open_storage(get_storage_plugin(config), namespace)
+                fn(sdm)
+            return 0
+        except Exception as e:
+            print(str(e), file=sys.stderr)
+            return -3
+
+    if args["storage_get"]:
+
+        def p(sdm):
+            print(repr(dict(sdm)))
+
+        err_value = storage_action(args["storage_get"][0], p)
+        sys.exit(err_value)
+
+    if args["storage_set"]:
+
+        def replace(sdm):
+            new_dict = (
+                _read_dict()
+            )  # fail early and don't erase the storage if the input is invalid.
+            sdm.clear()
+            sdm.update(new_dict)
+
+        err_value = storage_action(args["storage_set"][0], replace)
+        sys.exit(err_value)
+
+    if args["storage_merge"]:
+
+        def merge(sdm):
+            from deepmerge import always_merger
+
+            new_dict = _read_dict()
+            for key, value in new_dict.items():
+                with sdm.mutable(key, {}) as conf:
+                    always_merger.merge(conf, value)
+
+        err_value = storage_action(args["storage_merge"][0], merge)
+        sys.exit(err_value)
+
+    if args["restore"]:
+        backend = "Null"  # we don't want any backend when we restore
+    elif args["backend"] is None:
+        if not hasattr(config, "BACKEND"):
+            log.fatal("The BACKEND configuration option is missing in config.py")
+            sys.exit(1)
+        backend = config.BACKEND
+    else:
+        backend = args["backend"]
+
+    log.info(f"Selected backend {backend}.")
+
+    # Check if at least we can start to log something before trying to start
+    # the bot (esp. daemonize it).
+
+    log.info(f"Checking for {config.BOT_DATA_DIR}...")
+    if not path.exists(config.BOT_DATA_DIR):
+        raise Exception(
+            f'The data directory "{config.BOT_DATA_DIR}" for the bot does not exist.'
+        )
+    if not access(config.BOT_DATA_DIR, W_OK):
+        raise Exception(
+            f'The data directory "{config.BOT_DATA_DIR}" should be writable for the bot.'
+        )
+
+    if (not ON_WINDOWS) and args["daemon"]:
+        if args["backend"] == "Text":
+            raise Exception("You cannot run in text and daemon mode at the same time")
+        if args["restore"]:
+            raise Exception("You cannot restore a backup in daemon mode.")
+        if args["pidfile"]:
+            pid = args["pidfile"]
+        else:
+            pid = config.BOT_DATA_DIR + sep + "err.pid"
+
+        # noinspection PyBroadException
+        try:
+
+            def action():
+                from errbot.bootstrap import bootstrap
+
+                bootstrap(backend, root_logger, config)
+
+            daemon = Daemonize(app="err", pid=pid, action=action, chdir=os.getcwd())
+            log.info("Daemonizing")
+            daemon.start()
+        except Exception:
+            log.exception("Failed to daemonize the process")
+        exit(0)
+    from errbot.bootstrap import bootstrap
+
+    restore = args["restore"]
+    if restore == "default":  # restore with no argument, get the default location
+        restore = path.join(config.BOT_DATA_DIR, "backup.py")
+
+    bootstrap(backend, root_logger, config, restore)
+    log.info("Process exiting")

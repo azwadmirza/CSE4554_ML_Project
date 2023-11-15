@@ -1,0 +1,16 @@
+        def callback(*args):
+            LOGGER.debug("in callback - {}".format(request.transaction_id))
+            while True:
+                waiting = self.stream.connection.in_waiting
+                if waiting:
+                    data = self.stream.connection.read(waiting)
+                    LOGGER.debug(
+                        "recv: " + " ".join([hex(byte2int(x)) for x in data]))
+                    unit = self.framer.decode_data(data).get("uid", 0)
+                    self.framer.processIncomingPacket(
+                        data,
+                        self._handle_response,
+                        unit,
+                        tid=request.transaction_id
+                    )
+                    break

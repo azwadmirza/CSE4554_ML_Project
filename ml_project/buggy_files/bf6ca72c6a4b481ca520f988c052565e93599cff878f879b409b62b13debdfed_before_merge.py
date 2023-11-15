@@ -1,0 +1,31 @@
+    def get_angles(self, angle_id):
+        """Get sun-satellite viewing angles."""
+        sunz40km = self._data["ang"][:, :, 0] * 1e-2
+        satz40km = self._data["ang"][:, :, 1] * 1e-2
+        azidiff40km = self._data["ang"][:, :, 2] * 1e-2
+
+        try:
+            from geotiepoints.interpolator import Interpolator
+        except ImportError:
+            logger.warning("Could not interpolate sun-sat angles, "
+                           "python-geotiepoints missing.")
+            self.sunz, self.satz, self.azidiff = sunz40km, satz40km, azidiff40km
+        else:
+            cols40km = np.arange(24, 2048, 40)
+            cols1km = np.arange(2048)
+            lines = sunz40km.shape[0]
+            rows40km = np.arange(lines)
+            rows1km = np.arange(lines)
+
+            along_track_order = 1
+            cross_track_order = 3
+
+            satint = Interpolator(
+                [sunz40km, satz40km, azidiff40km], (rows40km, cols40km),
+                (rows1km, cols1km), along_track_order, cross_track_order)
+            self.sunz, self.satz, self.azidiff = delayed(satint.interpolate, nout=3)()
+            self.sunz = da.from_delayed(self.sunz, (lines, 2048), sunz40km.dtype)
+            self.satz = da.from_delayed(self.satz, (lines, 2048), satz40km.dtype)
+            self.azidiff = da.from_delayed(self.azidiff, (lines, 2048), azidiff40km.dtype)
+
+        return create_xarray(getattr(self, ANGLES[angle_id]))

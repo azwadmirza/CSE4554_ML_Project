@@ -1,0 +1,31 @@
+    def wrapper(self, other):
+        func = getattr(super(DatetimeIndex, self), opname)
+        if (isinstance(other, datetime) or
+                isinstance(other, compat.string_types)):
+            other = _to_m8(other, tz=self.tz)
+            result = func(other)
+            if isna(other):
+                result.fill(nat_result)
+        else:
+            if isinstance(other, list):
+                other = DatetimeIndex(other)
+            elif not isinstance(other, (np.ndarray, Index, ABCSeries)):
+                other = _ensure_datetime64(other)
+            result = func(np.asarray(other))
+            result = _values_from_object(result)
+
+            if isinstance(other, Index):
+                o_mask = other.values.view('i8') == libts.iNaT
+            else:
+                o_mask = other.view('i8') == libts.iNaT
+
+            if o_mask.any():
+                result[o_mask] = nat_result
+
+        if self.hasnans:
+            result[self._isnan] = nat_result
+
+        # support of bool dtype indexers
+        if is_bool_dtype(result):
+            return result
+        return Index(result)

@@ -1,0 +1,43 @@
+def render_task_status(tasklist):
+    #helper function to apply localize status information in tasklist entries
+    renderedtasklist=list()
+    # task2 = task
+    for task in tasklist:
+        if task['user'] == current_user.nickname or current_user.role_admin():
+            # task2 = copy.deepcopy(task) # = task
+            if task['formStarttime']:
+                task['starttime'] = format_datetime(task['formStarttime'], format='short', locale=web.get_locale())
+            # task2['formStarttime'] = ""
+            else:
+                if 'starttime' not in task:
+                    task['starttime'] = ""
+
+            # localize the task status
+            if isinstance( task['stat'], int ):
+                if task['stat'] == worker.STAT_WAITING:
+                    task['status'] = _(u'Waiting')
+                elif task['stat'] == worker.STAT_FAIL:
+                    task['status'] = _(u'Failed')
+                elif task['stat'] == worker.STAT_STARTED:
+                    task['status'] = _(u'Started')
+                elif task['stat'] == worker.STAT_FINISH_SUCCESS:
+                    task['status'] = _(u'Finished')
+                else:
+                    task['status'] = _(u'Unknown Status')
+
+            # localize the task type
+            if isinstance( task['taskType'], int ):
+                if task['taskType'] == worker.TASK_EMAIL:
+                    task['taskMessage'] = _(u'E-mail: ') + task['taskMess']
+                elif  task['taskType'] == worker.TASK_CONVERT:
+                    task['taskMessage'] = _(u'Convert: ') + task['taskMess']
+                elif  task['taskType'] == worker.TASK_UPLOAD:
+                    task['taskMessage'] = _(u'Upload: ') + task['taskMess']
+                elif  task['taskType'] == worker.TASK_CONVERT_ANY:
+                    task['taskMessage'] = _(u'Convert: ') + task['taskMess']
+                else:
+                    task['taskMessage'] = _(u'Unknown Task: ') + task['taskMess']
+
+            renderedtasklist.append(task)
+
+    return renderedtasklist

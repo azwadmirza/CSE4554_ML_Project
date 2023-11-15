@@ -1,0 +1,8 @@
+    def compile_update_catalogs(self):
+        catalogs = i18n.find_catalog_source_files(
+            [path.join(self.srcdir, x) for x in self.config.locale_dirs],
+            self.config.language,
+            charset=self.config.source_encoding,
+            gettext_compact=self.config.gettext_compact)
+        message = 'targets for %d po files that are out of date' % len(catalogs)
+        self.compile_catalogs(catalogs, message)

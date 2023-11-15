@@ -1,0 +1,2 @@
+    def closer():
+        ctx.end()

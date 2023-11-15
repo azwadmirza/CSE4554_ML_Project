@@ -1,0 +1,47 @@
+    def process(self):
+        report = self.receive_message()
+
+        if report is None or not report.contains("raw"):
+            self.acknowledge_message()
+            return
+
+        raw_report = utils.base64_decode(report.value("raw"))
+
+        fp = io.StringIO(raw_report)
+        rows = csv.DictReader(fp)
+
+        for row in rows:
+            event = Event(report)
+
+            for key, value in row.items():
+                if not value:
+                    continue
+
+                key = COLUMNS[key]
+
+                if key == "__IGNORE__" or key == "__TDB__":
+                    continue
+
+                if key == "source.fqdn" and IPAddress.is_valid(value,
+                                                               sanitize=True):
+                    continue
+
+                if key == "time.source":
+                    value = value + " UTC"
+
+                if key == "source.asn" and value.startswith("ASNA"):
+                    continue
+
+                if key == "source.asn":
+                    for asn in value.split(','):
+                        if asn.startswith("AS"):
+                            value = asn.split("AS")[1]
+                            break
+
+                event.add(key, value, sanitize=True)
+
+            event.add('classification.type', u'malware')
+            event.add("raw", ",".join(row), sanitize=True)
+
+            self.send_message(event)
+        self.acknowledge_message()

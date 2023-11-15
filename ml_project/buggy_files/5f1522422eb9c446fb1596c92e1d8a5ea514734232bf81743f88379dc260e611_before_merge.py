@@ -1,0 +1,4 @@
+    def start(self):
+        if not self._active:
+            self._active = True
+            self.thread.start()

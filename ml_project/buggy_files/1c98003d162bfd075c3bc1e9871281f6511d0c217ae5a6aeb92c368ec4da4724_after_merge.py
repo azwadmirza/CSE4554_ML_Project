@@ -1,0 +1,24 @@
+    async def load(self, ctx, *, cog_name: str):
+        """Loads packages"""
+
+        cog_names = [c.strip() for c in cog_name.split(" ")]
+        async with ctx.typing():
+            loaded, failed, not_found = await self._load(cog_names)
+
+        if loaded:
+            fmt = "Loaded {packs}"
+            formed = self._get_package_strings(loaded, fmt)
+            await ctx.send(formed)
+
+        if failed:
+            fmt = (
+                "Failed to load package{plural} {packs}. Check your console or "
+                "logs for details."
+            )
+            formed = self.get_package_strings(failed, fmt)
+            await ctx.send(formed)
+
+        if not_found:
+            fmt = "The package{plural} {packs} {other} not found in any cog path."
+            formed = self._get_package_strings(not_found, fmt, ("was", "were"))
+            await ctx.send(formed)

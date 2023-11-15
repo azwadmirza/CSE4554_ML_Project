@@ -1,0 +1,28 @@
+    def update(self, order: Dict) -> None:
+        """
+        Updates this entity with amount and actual open/close rates.
+        :param order: order retrieved by exchange.get_order()
+        :return: None
+        """
+        order_type = order['type']
+        # Ignore open and cancelled orders
+        if order['status'] == 'open' or order['price'] is None:
+            return
+
+        logger.info('Updating trade (id=%d) ...', self.id)
+
+        if order_type == 'limit' and order['side'] == 'buy':
+            # Update open rate and actual amount
+            self.open_rate = Decimal(order['price'])
+            self.amount = Decimal(order['amount'])
+            logger.info('LIMIT_BUY has been fulfilled for %s.', self)
+            self.open_order_id = None
+        elif order_type == 'limit' and order['side'] == 'sell':
+            self.close(order['price'])
+        elif order_type == 'stop_loss_limit':
+            self.stoploss_order_id = None
+            logger.info('STOP_LOSS_LIMIT is hit for %s.', self)
+            self.close(order['average'])
+        else:
+            raise ValueError(f'Unknown order type: {order_type}')
+        cleanup()
