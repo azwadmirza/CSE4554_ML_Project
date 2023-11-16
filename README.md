@@ -1,2 +1,4 @@
 # CSE4554_ML_Project
-Bug Detection for Python
+
+
+This is a project that involves bug detection using machine learning for python machine learning based code
