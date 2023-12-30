@@ -8,3 +8,7 @@ The dataset was obtained from the following [url](https://pytracebugs-dataset.ob
 The following paper was used to guide us through the process: [PyTraceBugs: A Large Python Code Dataset for Supervised Machine Learning in Software Defect Prediction](https://ieeexplore.ieee.org/document/9712116)
 
 DOI for paper: 10.1109/APSEC53868.2021.00022
+
+Link to raw dataset upon applying metrics and Saved Model Data: [url](https://drive.google.com/drive/folders/16eeHxFwatg718wailrPrSnePBntO9fLn?usp=sharing) and [url](https://drive.google.com/drive/folders/1uvHqYc_DORfIEyK_8Ckb6brN8keYf5lP?usp=sharing)
+
+
